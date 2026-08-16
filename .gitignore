@@ -1,10 +1,5 @@
-# Never ship credentials or machine-local Pi state.
+node_modules/
 auth.json
 *.bak
 sessions/
-npm/
-bin/
-trust.json
-models.json
-models-store.json
 .DS_Store

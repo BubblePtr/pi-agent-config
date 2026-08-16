@@ -1,0 +1,55 @@
+{
+  "name": "pi-agent-config",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kieran's Pi coding-agent preset: defaults, global instructions, and the usual packages.",
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BubblePtr/pi-agent-config.git"
+  },
+  "files": [
+    "AGENTS.md",
+    "defaults.json",
+    "extensions",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/defaults.ts",
+      "./node_modules/context-mode/build/adapters/pi/extension.js",
+      "./node_modules/pi-subagents/index.ts",
+      "./node_modules/nowledge-mem-pi/extensions/nowledge-mem.ts",
+      "./node_modules/pi-web-access/index.ts",
+      "./node_modules/pi-powerline-footer/index.ts"
+    ],
+    "skills": [
+      "./node_modules/context-mode/skills",
+      "./node_modules/pi-subagents/skills",
+      "./node_modules/nowledge-mem-pi/skills"
+    ],
+    "prompts": [
+      "./node_modules/pi-subagents/prompts"
+    ]
+  },
+  "dependencies": {
+    "context-mode": "^1.0.169",
+    "nowledge-mem-pi": "^0.8.6",
+    "pi-powerline-footer": "^0.15.0",
+    "pi-subagents": "^0.50.0",
+    "pi-web-access": "^0.23.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}
