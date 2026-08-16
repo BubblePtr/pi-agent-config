@@ -1,0 +1,13 @@
+{
+  "defaultModel": "deepseek-v4-flash",
+  "defaultProvider": "deepseek",
+  "defaultThinkingLevel": "xhigh",
+  "packages": [
+    "npm:context-mode",
+    "npm:pi-subagents",
+    "npm:nowledge-mem-pi",
+    "npm:pi-web-access",
+    "npm:pi-powerline-footer"
+  ],
+  "theme": "dark"
+}
