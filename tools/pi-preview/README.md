@@ -10,17 +10,25 @@
 ## 用法
 
 ```bash
-bun tools/pi-preview/cli.ts <extension-entry> [--scenario <scenario.ts>]
+node tools/pi-preview/cli.ts <extension-entry> [--scenario <scenario.ts>]
 
 # 等价的 npm script
 npm run preview -- extensions/defaults.ts
-npm run preview -- extensions/defaults.ts --scenario ./my-scenario.ts
+npm run preview -- extensions/defaults.ts --scenario tools/pi-preview/scenarios/subagents.ts
 ```
 
 - `<extension-entry>`：要预览的扩展入口文件（相对当前目录解析）。
 - `--scenario`：回合脚本文件；不传则用内置脚本 `default-scenario.ts`。
 
 退出方式和平常的 pi 一样：`Ctrl+D` 或 `/exit`。
+
+### 必须用 Node 跑，不能用 Bun
+
+**Bun 没实现 `node:v8` 的 `promiseHooks.createHook`**，而真实扩展会用到它
+（`pi-subagents` 的 workflow runner 直接 `require("node:v8")` 并在缺失时抛
+`NotImplementedError`），在 Bun 下预览会把本来正常的扩展显示成坏的。所以入口是
+`node`（v22.18+ 自带 TypeScript 类型擦除，无需 `--experimental-strip-types`）；
+用 `bun` 启动会直接报错并给出正确命令，不会半跑。
 
 ## scenario 文件格式
 
@@ -54,6 +62,25 @@ agent 会再请求一次模型，也就是消耗下一个回合。所以上面�
 
 脚本跑完之后，mock 不会报错，而是持续返回一句 “scenario exhausted” 提示，TUI 依然可用。
 
+## 子进程 mock
+
+有些扩展会自己 spawn `pi` 子进程（`pi-subagents` 的子代理就是），子进程会继承父会话的模型名
+`pi-preview/mock`，但自己并不认识这个 provider，于是启动即失败
+（`Model "pi-preview/mock:high" not found`），只能看到失败态 UI。
+
+所以预览启动时会往隔离的 `$TMPDIR/pi-preview-agent/settings.json` 里写一条 pi 自己的
+`extensions` 配置，指向 `child-extension.ts`。任何走常规扩展发现的 pi 子进程都会加载它，
+拿到同一个 mock provider 和一段固定的子回合脚本（一次 `bash ls -1` + 一段总结），从而跑到
+成功态——这样 `pi-subagents` 的进度、tool uses、usage 汇总才有东西可看。
+
+这条注入是**扩展无关**的：写的是 pi 的通用设置项，不针对某个扩展。合并是幂等的，不会覆盖
+pi 自己写进这个文件的键。
+
+子回合脚本是固定的，不跟父 scenario 联动；要改就改 `child-extension.ts`。
+
+限制：如果某个 subagent 的 agent 定义自己声明了 `extensions`，pi-subagents 会给子进程加
+`--no-extensions`，此时环境注入不生效，那个子代理仍会失败。
+
 ## 已知限制 / 选型说明
 
 - **工具是真跑的。** scenario 里的 `toolCalls` 会交给 pi 真实的工具执行（不是伪造结果），
@@ -76,10 +103,14 @@ agent 会再请求一次模型，也就是消耗下一个回合。所以上面�
 
 ## 目录结构
 
-- `cli.ts` — 参数解析；在导入 SDK **之前**设置环境变量隔离。
-- `preview.ts` — 装配 mock provider、resource loader、`InteractiveMode`。
+- `cli.ts` — 参数解析、Bun 拦截；在导入 SDK **之前**设置环境变量隔离。
+- `preview.ts` — 装配 resource loader、`InteractiveMode`。
+- `mock-provider.ts` — faux provider 注册 + 把会话钉死在 mock 上（父子共用）。
 - `scenario.ts` — scenario 类型、校验、推进、转成 assistant 消息（纯逻辑，有单测）。
+- `child-mock.ts` — 把 `child-extension.ts` 写进隔离 settings.json（合并逻辑有单测）。
+- `child-extension.ts` — 子进程侧扩展：注册同一个 mock + 固定子回合脚本。
 - `default-scenario.ts` — 内置脚本，也可当作写自己 scenario 的模板。
+- `scenarios/` — 现成的示例脚本（如 `subagents.ts`）。
 
 单测：`node --test test/pi-preview-scenario.test.js`（或 `npm test`）。
 TUI 整体启动属集成面，v1 手动验证。

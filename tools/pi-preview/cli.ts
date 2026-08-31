@@ -1,13 +1,25 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-const USAGE = `Usage: bun tools/pi-preview/cli.ts <extension-entry> [--scenario <file>]
+const USAGE = `Usage: node tools/pi-preview/cli.ts <extension-entry> [--scenario <file>]
 
 Starts a real pi TUI with a scripted mock model so extension UI can be previewed
 without spending inference. See tools/pi-preview/README.md.`;
+
+// Bun has no node:v8 promiseHooks.createHook, which real extensions reach for
+// (pi-subagents' workflow runner throws on it), so the preview would misreport
+// working extensions as broken. Fail loudly instead of half-running.
+if (process.versions.bun) {
+  console.error(
+    "pi-preview must run on Node, not Bun: Bun lacks node:v8 promiseHooks.createHook,\n" +
+      "which some extensions require. Re-run with:\n\n" +
+      `  node ${process.argv.slice(1).join(" ")}\n`,
+  );
+  process.exit(1);
+}
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,

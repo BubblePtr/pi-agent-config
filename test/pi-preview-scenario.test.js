@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { withChildMockExtension } from "../tools/pi-preview/child-mock.ts";
 import {
   createScenarioRunner,
   normalizeScenario,
@@ -69,5 +70,32 @@ describe("toAssistantMessage", () => {
 
   it("stops with stop for a text-only turn", () => {
     assert.equal(toAssistantMessage({ text: "done" }).stopReason, "stop");
+  });
+});
+
+describe("withChildMockExtension", () => {
+  it("adds the child extension to an empty settings file", () => {
+    assert.deepEqual(withChildMockExtension({}, "/x/child.ts"), {
+      extensions: ["/x/child.ts"],
+    });
+  });
+
+  it("stays idempotent so repeated previews do not grow the list", () => {
+    const once = withChildMockExtension({}, "/x/child.ts");
+    assert.deepEqual(withChildMockExtension(once, "/x/child.ts").extensions, ["/x/child.ts"]);
+  });
+
+  it("keeps other extensions and the unrelated keys pi persists", () => {
+    const seeded = withChildMockExtension(
+      {
+        extensions: ["/other/ext.ts"],
+        defaultModel: "pi-preview/mock",
+        subagents: { defaultThinking: "high" },
+      },
+      "/x/child.ts",
+    );
+    assert.deepEqual(seeded.extensions, ["/other/ext.ts", "/x/child.ts"]);
+    assert.equal(seeded.defaultModel, "pi-preview/mock");
+    assert.deepEqual(seeded.subagents, { defaultThinking: "high" });
   });
 });

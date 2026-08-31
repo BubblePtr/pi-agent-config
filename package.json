@@ -20,7 +20,7 @@
     "README.md"
   ],
   "scripts": {
-    "preview": "bun tools/pi-preview/cli.ts",
+    "preview": "node tools/pi-preview/cli.ts",
     "test": "node --test test/*.test.js"
   },
   "pi": {

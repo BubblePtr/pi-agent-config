@@ -1,4 +1,3 @@
-import { type FauxResponseStep, fauxProvider } from "@earendil-works/pi-ai";
 import {
   type CreateAgentSessionRuntimeFactory,
   createAgentSessionFromServices,
@@ -10,11 +9,10 @@ import {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
+import { installChildMock } from "./child-mock.ts";
 import defaultScenario from "./default-scenario.ts";
-import { createScenarioRunner, loadScenario, toAssistantMessage } from "./scenario.ts";
-
-const PROVIDER_ID = "pi-preview";
-const MODEL_ID = "mock";
+import { MODEL_ID, PROVIDER_ID, registerMockProvider } from "./mock-provider.ts";
+import { loadScenario } from "./scenario.ts";
 
 export type PreviewOptions = {
   /** Extension entry to preview. */
@@ -27,44 +25,11 @@ export type PreviewOptions = {
 
 export async function runPreview(options: PreviewOptions): Promise<void> {
   const turns = options.scenarioPath ? await loadScenario(options.scenarioPath) : defaultScenario;
-  const nextTurn = createScenarioRunner(turns);
-
-  const faux = fauxProvider({
-    provider: PROVIDER_ID,
-    models: [
-      {
-        id: MODEL_ID,
-        name: "pi-preview mock",
-        reasoning: true,
-        input: ["text", "image"],
-        contextWindow: 200_000,
-        maxTokens: 16_384,
-      },
-    ],
-    // Slow the stream down enough that streaming-driven UI is actually visible.
-    tokensPerSecond: 80,
-  });
-
-  // The faux queue is consumed one step per model call, so each step re-arms the
-  // next one. Without this the provider would error out once the queue drains.
-  const step: FauxResponseStep = () => {
-    faux.appendResponses([step]);
-    return toAssistantMessage(nextTurn());
-  };
-  faux.setResponses([step]);
+  installChildMock(options.agentDir);
 
   const previewExtension: InlineExtension = {
     name: PROVIDER_ID,
-    factory: (pi) => {
-      pi.registerProvider(faux.provider);
-      // Inline factories load after file extensions, so this handler runs last:
-      // a previewed extension that picks its own model on startup cannot drag
-      // the preview onto a real, billable provider.
-      pi.on("session_start", async (_event, ctx) => {
-        const model = ctx.modelRegistry.find(PROVIDER_ID, MODEL_ID);
-        if (model) await pi.setModel(model);
-      });
-    },
+    factory: (pi) => registerMockProvider(pi, turns),
   };
 
   const createRuntime: CreateAgentSessionRuntimeFactory = async ({
