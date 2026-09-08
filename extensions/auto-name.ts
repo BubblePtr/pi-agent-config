@@ -78,22 +78,27 @@ export default function (pi: ExtensionAPI) {
 
   // Name the session from the first user message so the selector shows a
   // readable title as early as possible.
-  pi.on("message_end", async (event, ctx) => {
+  pi.on("message_end", (event, ctx) => {
     if (named || event.message.role !== "user") return;
     const source = extractText(event.message.content).trim();
     if (!source) return;
-    // Mark before awaiting so a second user message during the call doesn't
-    // fire another naming request.
+    // Mark before the request so a second user message during the call
+    // doesn't fire another naming request.
     named = true;
-    try {
-      const name = await generateName(ctx, source);
-      if (name) {
-        pi.setSessionName(name);
-        ctx.ui.notify(`Session named: ${name}`, "info");
-      }
-    } catch {
-      // Naming is best-effort; ignore provider failures.
-    }
+    // Pi awaits message_end handlers before it hands the user message to the
+    // agent loop and to session subscribers, so the naming round-trip must
+    // run detached: awaiting it here would stall the turn (and any GUI that
+    // waits for the user-message boundary) for the model's full latency.
+    void generateName(ctx, source)
+      .then((name) => {
+        if (name) {
+          pi.setSessionName(name);
+          ctx.ui.notify(`Session named: ${name}`, "info");
+        }
+      })
+      .catch(() => {
+        // Naming is best-effort; ignore provider failures.
+      });
   });
 
   pi.registerCommand("auto-name", {
